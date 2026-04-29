@@ -1,775 +1,538 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
-const COLORS = {
-  primary: "#1877F2",
-  primaryDark: "#0D47A1",
-  bg: "#f6f8fb",
-  card: "#ffffff",
-  border: "#e2e8f0",
-  text: "#0f172a",
-  muted: "#64748b",
-  green: "#10b981",
-  red: "#ef4444",
-  amber: "#f59e0b",
-  purple: "#7c3aed",
-  blue: "#2563eb",
-};
-
-const STATUS = {
+const statusColors = {
   "Não iniciado": "#94a3b8",
   "Em andamento": "#2563eb",
   "Concluído": "#10b981",
   "Travado": "#ef4444",
-  "Em espera": "#f59e0b",
 };
 
-const PRIORITY = {
-  Baixa: "#94a3b8",
-  Média: "#2563eb",
-  Alta: "#f59e0b",
-  Crítica: "#ef4444",
-};
-
-const ROLES = ["Administrador", "Gerente", "Membro", "Visualizador"];
-
-const initialData = {
-  loggedUser: {
+const initialTasks = [
+  {
     id: 1,
-    name: "Thiago Freitas",
-    email: "thiago@inteligenciaemsaude.com",
-    role: "Administrador",
+    title: "Módulo de validação de AIH",
+    project: "Fatura SUS",
+    responsible: "Luciano",
+    status: "Em andamento",
+    priority: "Alta",
+    dueDate: "2026-05-30",
   },
-  activePage: "dashboard",
-  users: [
-    {
-      id: 1,
-      name: "Thiago Freitas",
-      email: "thiago@inteligenciaemsaude.com",
-      role: "Administrador",
-      status: "Online",
-    },
-    {
-      id: 2,
-      name: "Luciano Santos",
-      email: "luciano@inteligenciaemsaude.com",
-      role: "Gerente",
-      status: "Online",
-    },
-    {
-      id: 3,
-      name: "Ana Silva",
-      email: "ana@inteligenciaemsaude.com",
-      role: "Membro",
-      status: "Offline",
-    },
-    {
-      id: 4,
-      name: "Pedro Costa",
-      email: "pedro@inteligenciaemsaude.com",
-      role: "Visualizador",
-      status: "Offline",
-    },
-  ],
-  projects: [
-    {
-      id: 1,
-      name: "Fatura SUS",
-      owner: "Luciano Santos",
-      status: "Em andamento",
-      start: "2026-04-01",
-      end: "2026-07-31",
-    },
-    {
-      id: 2,
-      name: "Controle & Avaliação",
-      owner: "Ana Silva",
-      status: "Em andamento",
-      start: "2026-05-01",
-      end: "2026-08-30",
-    },
-    {
-      id: 3,
-      name: "Regulação SUS",
-      owner: "Pedro Costa",
-      status: "Não iniciado",
-      start: "2026-06-01",
-      end: "2026-10-15",
-    },
-  ],
-  tasks: [
-    {
-      id: 1,
-      title: "Módulo de validação de AIH",
-      project: "Fatura SUS",
-      group: "Em andamento",
-      responsible: "Luciano Santos",
-      status: "Em andamento",
-      priority: "Crítica",
-      dueDate: "2026-05-30",
-      notes: "Validação das regras principais.",
-    },
-    {
-      id: 2,
-      title: "Integração CNES",
-      project: "Fatura SUS",
-      group: "Em andamento",
-      responsible: "Ana Silva",
-      status: "Em andamento",
-      priority: "Alta",
-      dueDate: "2026-05-20",
-      notes: "Conectar dados de estabelecimentos.",
-    },
-    {
-      id: 3,
-      title: "Dashboard financeiro",
-      project: "Fatura SUS",
-      group: "Planejamento",
-      responsible: "Pedro Costa",
-      status: "Em espera",
-      priority: "Média",
-      dueDate: "2026-06-10",
-      notes: "Aguardando definição dos indicadores.",
-    },
-    {
-      id: 4,
-      title: "Módulo de auditoria",
-      project: "Controle & Avaliação",
-      group: "Sprint 1",
-      responsible: "Ana Silva",
-      status: "Não iniciado",
-      priority: "Alta",
-      dueDate: "2026-06-15",
-      notes: "",
-    },
-    {
-      id: 5,
-      title: "Autenticação de usuários",
-      project: "IES SUS",
-      group: "Concluídos",
-      responsible: "Thiago Freitas",
-      status: "Concluído",
-      priority: "Crítica",
-      dueDate: "2026-04-15",
-      notes: "Base inicial criada.",
-    },
-  ],
-  automations: [
-    {
-      id: 1,
-      name: "Tarefa vencida → notificar responsável",
-      trigger: "Prazo expirado",
-      action: "Enviar alerta",
-      active: true,
-    },
-    {
-      id: 2,
-      name: "Status concluído → mover para concluídos",
-      trigger: "Status = Concluído",
-      action: "Mover tarefa",
-      active: true,
-    },
-    {
-      id: 3,
-      name: "Prioridade crítica → alertar administrador",
-      trigger: "Prioridade = Crítica",
-      action: "Notificar administrador",
-      active: false,
-    },
-    {
-      id: 4,
-      name: "Projeto concluído → gerar relatório",
-      trigger: "Todas as tarefas concluídas",
-      action: "Gerar relatório",
-      active: false,
-    },
-  ],
-};
-
-const NAV = [
-  { id: "dashboard", label: "Dashboard", icon: "📊" },
-  { id: "projects", label: "Projetos", icon: "📁" },
-  { id: "tasks", label: "Tarefas", icon: "📋" },
-  { id: "team", label: "Equipe", icon: "👥" },
-  { id: "users", label: "Usuários", icon: "🔐" },
-  { id: "automations", label: "Automações", icon: "⚡" },
-  { id: "timeline", label: "Timeline", icon: "📅" },
-  { id: "settings", label: "Configurações", icon: "⚙️" },
-  { id: "profile", label: "Perfil", icon: "👤" },
+  {
+    id: 2,
+    title: "Integração CNES",
+    project: "Fatura SUS",
+    responsible: "Ana",
+    status: "Em andamento",
+    priority: "Alta",
+    dueDate: "2026-05-20",
+  },
+  {
+    id: 3,
+    title: "Dashboard financeiro",
+    project: "Gestão Interna",
+    responsible: "Pedro",
+    status: "Não iniciado",
+    priority: "Média",
+    dueDate: "2026-06-10",
+  },
+  {
+    id: 4,
+    title: "Autenticação de usuários",
+    project: "Plataforma",
+    responsible: "Carlos",
+    status: "Concluído",
+    priority: "Alta",
+    dueDate: "2026-04-15",
+  },
 ];
 
-function safeLoad() {
-  try {
-    const saved = localStorage.getItem("ies_sus_data");
-    return saved ? JSON.parse(saved) : initialData;
-  } catch {
-    return initialData;
-  }
-}
-
 export default function App() {
-  const [data, setData] = useState(safeLoad);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [logged, setLogged] = useState(false);
+  const [page, setPage] = useState("dashboard");
+  const [tasks, setTasks] = useState(() => {
+    const saved = localStorage.getItem("ies_tasks");
+    return saved ? JSON.parse(saved) : initialTasks;
+  });
 
   useEffect(() => {
-    localStorage.setItem("ies_sus_data", JSON.stringify(data));
-  }, [data]);
+    localStorage.setItem("ies_tasks", JSON.stringify(tasks));
+  }, [tasks]);
 
-  const tasks = data.tasks || [];
-  const users = data.users || [];
-  const projects = data.projects || [];
-  const page = data.activePage || "dashboard";
+  function addTask() {
+    const title = prompt("Nome da tarefa:");
+    if (!title) return;
 
-  const stats = useMemo(() => {
-    return {
-      total: tasks.length,
-      done: tasks.filter((t) => t.status === "Concluído").length,
-      progress: tasks.filter((t) => t.status === "Em andamento").length,
-      blocked: tasks.filter((t) => t.status === "Travado").length,
-      users: users.length,
-      projects: projects.length,
-    };
-  }, [tasks, users, projects]);
-
-  function setPage(pageId) {
-    setData((d) => ({ ...d, activePage: pageId }));
+    setTasks([
+      ...tasks,
+      {
+        id: Date.now(),
+        title,
+        project: "Novo Projeto",
+        responsible: "Sem responsável",
+        status: "Não iniciado",
+        priority: "Média",
+        dueDate: "",
+      },
+    ]);
   }
 
   function updateTask(id, field, value) {
-    setData((d) => ({
-      ...d,
-      tasks: d.tasks.map((t) => (t.id === id ? { ...t, [field]: value } : t)),
-    }));
-  }
-
-  function addTask() {
-    const title = prompt("Nome da nova tarefa:");
-    if (!title) return;
-
-    setData((d) => ({
-      ...d,
-      tasks: [
-        ...d.tasks,
-        {
-          id: Date.now(),
-          title,
-          project: d.projects[0]?.name || "IES SUS",
-          group: "Novo grupo",
-          responsible: d.loggedUser?.name || "Sem responsável",
-          status: "Não iniciado",
-          priority: "Média",
-          dueDate: "",
-          notes: "",
-        },
-      ],
-      activePage: "tasks",
-    }));
+    setTasks(tasks.map((t) => (t.id === id ? { ...t, [field]: value } : t)));
   }
 
   function deleteTask(id) {
-    if (!confirm("Excluir esta tarefa?")) return;
-    setData((d) => ({ ...d, tasks: d.tasks.filter((t) => t.id !== id) }));
+    if (confirm("Deseja excluir esta tarefa?")) {
+      setTasks(tasks.filter((t) => t.id !== id));
+    }
   }
 
-  function addUser() {
-    const name = prompt("Nome do usuário:");
-    if (!name) return;
+  if (!logged) {
+    return (
+      <div style={styles.loginPage}>
+        <div style={styles.loginBox}>
+          <div style={styles.logo}>🏥</div>
+          <h1 style={styles.loginTitle}>IES Flow</h1>
+          <p style={styles.loginSubtitle}>Inteligência em Saúde</p>
 
-    const email = prompt("E-mail do usuário:") || "usuario@ies-sus.com";
+          <input style={styles.input} placeholder="E-mail" defaultValue="thiago@inteligenciaemsaude.com" />
+          <input style={styles.input} placeholder="Senha" type="password" defaultValue="admin123" />
 
-    setData((d) => ({
-      ...d,
-      users: [
-        ...d.users,
-        {
-          id: Date.now(),
-          name,
-          email,
-          role: "Membro",
-          status: "Offline",
-        },
-      ],
-    }));
+          <button style={styles.primaryButton} onClick={() => setLogged(true)}>
+            Entrar
+          </button>
+        </div>
+      </div>
+    );
   }
 
-  function updateUser(id, field, value) {
-    setData((d) => ({
-      ...d,
-      users: d.users.map((u) => (u.id === id ? { ...u, [field]: value } : u)),
-    }));
-  }
-
-  function deleteUser(id) {
-    if (!confirm("Remover este usuário?")) return;
-    setData((d) => ({
-      ...d,
-      users: d.users.filter((u) => u.id !== id),
-    }));
-  }
-
-  function addProject() {
-    const name = prompt("Nome do projeto:");
-    if (!name) return;
-
-    setData((d) => ({
-      ...d,
-      projects: [
-        ...d.projects,
-        {
-          id: Date.now(),
-          name,
-          owner: d.loggedUser?.name || "Administrador",
-          status: "Não iniciado",
-          start: "",
-          end: "",
-        },
-      ],
-    }));
-  }
-
-  function updateProject(id, field, value) {
-    setData((d) => ({
-      ...d,
-      projects: d.projects.map((p) => (p.id === id ? { ...p, [field]: value } : p)),
-    }));
-  }
-
-  function toggleAutomation(id) {
-    setData((d) => ({
-      ...d,
-      automations: d.automations.map((a) => (a.id === id ? { ...a, active: !a.active } : a)),
-    }));
-  }
-
-  const pageTitle = NAV.find((n) => n.id === page)?.label || "Dashboard";
+  const total = tasks.length;
+  const done = tasks.filter((t) => t.status === "Concluído").length;
+  const progress = tasks.filter((t) => t.status === "Em andamento").length;
+  const blocked = tasks.filter((t) => t.status === "Travado").length;
 
   return (
     <div style={styles.app}>
-      <aside style={{ ...styles.sidebar, width: sidebarOpen ? 260 : 76 }}>
-        <div style={styles.brandRow}>
-          <div style={styles.logo}>🏥</div>
-          {sidebarOpen && (
-            <div>
-              <strong style={styles.brandTitle}>IES SUS</strong>
-              <div style={styles.brandSub}>Plataforma de gestão</div>
-            </div>
-          )}
-          <button style={styles.collapseBtn} onClick={() => setSidebarOpen((v) => !v)}>
-            {sidebarOpen ? "‹" : "☰"}
-          </button>
+      <aside style={styles.sidebar}>
+        <div style={styles.brand}>
+          <div style={styles.brandIcon}>🏥</div>
+          <div>
+            <strong>IES Flow</strong>
+            <small>Gestão em Saúde</small>
+          </div>
         </div>
 
-        <nav style={styles.nav}>
-          {NAV.map((item) => (
-            <button
-              key={item.id}
-              style={{
-                ...styles.navBtn,
-                ...(page === item.id ? styles.navBtnActive : {}),
-                justifyContent: sidebarOpen ? "flex-start" : "center",
-              }}
-              onClick={() => setPage(item.id)}
-            >
-              <span>{item.icon}</span>
-              {sidebarOpen && <span>{item.label}</span>}
-            </button>
-          ))}
-        </nav>
+        <button style={navStyle(page === "dashboard")} onClick={() => setPage("dashboard")}>
+          📊 Dashboard
+        </button>
+        <button style={navStyle(page === "tasks")} onClick={() => setPage("tasks")}>
+          📋 Tarefas
+        </button>
+        <button style={navStyle(page === "team")} onClick={() => setPage("team")}>
+          👥 Equipe
+        </button>
+        <button style={navStyle(page === "settings")} onClick={() => setPage("settings")}>
+          ⚙️ Configurações
+        </button>
 
-        {sidebarOpen && (
-          <div style={styles.userBox}>
-            <div style={styles.avatar}>{initials(data.loggedUser?.name)}</div>
-            <div>
-              <strong>{data.loggedUser?.name}</strong>
-              <small style={styles.smallMuted}>{data.loggedUser?.role}</small>
-            </div>
-          </div>
-        )}
+        <button style={styles.logout} onClick={() => setLogged(false)}>
+          Sair
+        </button>
       </aside>
 
       <main style={styles.main}>
         <header style={styles.header}>
           <div>
-            <h1 style={styles.h1}>{pageTitle}</h1>
-            <p style={styles.headerSub}>Workspace interno · IES SUS</p>
+            <h2 style={{ margin: 0 }}>
+              {page === "dashboard" && "Dashboard"}
+              {page === "tasks" && "Tarefas e Projetos"}
+              {page === "team" && "Equipe"}
+              {page === "settings" && "Configurações"}
+            </h2>
+            <p style={styles.muted}>Plataforma interna da Inteligência em Saúde</p>
           </div>
-          <div style={styles.headerActions}>
-            <button style={styles.secondaryBtn} onClick={() => setPage("profile")}>
-              Meu perfil
-            </button>
-            <button style={styles.primaryBtn} onClick={addTask}>
-              + Nova tarefa
-            </button>
-          </div>
+
+          <button style={styles.primaryButtonSmall} onClick={addTask}>
+            + Nova tarefa
+          </button>
         </header>
 
-        <section style={styles.content}>
-          {page === "dashboard" && <Dashboard stats={stats} tasks={tasks} projects={projects} />}
-          {page === "projects" && (
-            <Projects
-              projects={projects}
-              updateProject={updateProject}
-              addProject={addProject}
-            />
-          )}
-          {page === "tasks" && (
-            <Tasks
-              tasks={tasks}
-              users={users}
-              projects={projects}
-              updateTask={updateTask}
-              deleteTask={deleteTask}
-              addTask={addTask}
-            />
-          )}
-          {page === "team" && <Team users={users} tasks={tasks} />}
-          {page === "users" && (
-            <Users
-              users={users}
-              addUser={addUser}
-              updateUser={updateUser}
-              deleteUser={deleteUser}
-            />
-          )}
-          {page === "automations" && (
-            <Automations automations={data.automations} toggleAutomation={toggleAutomation} />
-          )}
-          {page === "timeline" && <Timeline projects={projects} tasks={tasks} />}
-          {page === "settings" && <Settings setData={setData} />}
-          {page === "profile" && <Profile user={data.loggedUser} setData={setData} />}
-        </section>
-      </main>
-    </div>
-  );
-}function Dashboard({ stats, tasks, projects }) {
-  return (
-    <div>
-      <div style={styles.cardsGrid}>
-        <KpiCard title="Tarefas" value={stats.total} icon="📋" color={COLORS.primary} />
-        <KpiCard title="Concluídas" value={stats.done} icon="✅" color={COLORS.green} />
-        <KpiCard title="Em andamento" value={stats.progress} icon="⚡" color={COLORS.amber} />
-        <KpiCard title="Projetos" value={stats.projects} icon="📁" color={COLORS.purple} />
-      </div>
-
-      <div style={styles.twoColumns}>
-        <Panel title="Resumo por status">
-          {Object.keys(STATUS).map((status) => {
-            const count = tasks.filter((t) => t.status === status).length;
-            return (
-              <ProgressLine
-                key={status}
-                label={status}
-                count={count}
-                total={tasks.length}
-                color={STATUS[status]}
-              />
-            );
-          })}
-        </Panel>
-
-        <Panel title="Projetos recentes">
-          {projects.map((project) => (
-            <div key={project.id} style={styles.listItem}>
-              <div>
-                <strong>{project.name}</strong>
-                <p style={styles.muted}>Responsável: {project.owner}</p>
-              </div>
-              <Badge color={STATUS[project.status]}>{project.status}</Badge>
+        {page === "dashboard" && (
+          <>
+            <div style={styles.cards}>
+              <Card title="Total de tarefas" value={total} color="#2563eb" />
+              <Card title="Concluídas" value={done} color="#10b981" />
+              <Card title="Em andamento" value={progress} color="#f59e0b" />
+              <Card title="Travadas" value={blocked} color="#ef4444" />
             </div>
-          ))}
-        </Panel>
-      </div>
 
-      <Panel title="Atividades recentes">
-        {tasks.slice(0, 5).map((task) => (
-          <div key={task.id} style={styles.activityItem}>
-            <span>📌</span>
-            <div>
-              <strong>{task.title}</strong>
-              <p style={styles.muted}>
-                {task.project} · {task.responsible} · {task.status}
-              </p>
-            </div>
-          </div>
-        ))}
-      </Panel>
-    </div>
-  );
-}
+            <section style={styles.panel}>
+              <h3>Resumo dos projetos</h3>
+              {tasks.map((task) => (
+                <div key={task.id} style={styles.progressRow}>
+                  <span>{task.title}</span>
+                  <div style={styles.progressBar}>
+                    <div
+                      style={{
+                        ...styles.progressFill,
+                        width:
+                          task.status === "Concluído"
+                            ? "100%"
+                            : task.status === "Em andamento"
+                            ? "60%"
+                            : task.status === "Travado"
+                            ? "20%"
+                            : "10%",
+                        background: statusColors[task.status],
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </section>
+          </>
+        )}
 
-function Projects({ projects, updateProject, addProject }) {
-  return (
-    <Panel
-      title="Projetos"
-      action={
-        <button style={styles.primaryBtn} onClick={addProject}>
-          + Novo projeto
-        </button>
-      }
-    >
-      <div style={styles.tableWrap}>
-        <table style={styles.table}>
-          <thead>
-            <tr>
-              <Th>Projeto</Th>
-              <Th>Responsável</Th>
-              <Th>Status</Th>
-              <Th>Início</Th>
-              <Th>Fim</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {projects.map((p) => (
-              <tr key={p.id}>
-                <Td>
-                  <input
-                    style={styles.cellInput}
-                    value={p.name}
-                    onChange={(e) => updateProject(p.id, "name", e.target.value)}
-                  />
-                </Td>
-                <Td>
-                  <input
-                    style={styles.cellInput}
-                    value={p.owner}
-                    onChange={(e) => updateProject(p.id, "owner", e.target.value)}
-                  />
-                </Td>
-                <Td>
-                  <Select
-                    value={p.status}
-                    options={Object.keys(STATUS)}
-                    onChange={(v) => updateProject(p.id, "status", v)}
-                    color={STATUS[p.status]}
-                  />
-                </Td>
-                <Td>
-                  <input
-                    type="date"
-                    style={styles.cellInput}
-                    value={p.start}
-                    onChange={(e) => updateProject(p.id, "start", e.target.value)}
-                  />
-                </Td>
-                <Td>
-                  <input
-                    type="date"
-                    style={styles.cellInput}
-                    value={p.end}
-                    onChange={(e) => updateProject(p.id, "end", e.target.value)}
-                  />
-                </Td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </Panel>
-  );
-}
-
-function Tasks({ tasks, users, projects, updateTask, deleteTask, addTask }) {
-  const groups = [...new Set(tasks.map((t) => t.group || "Sem grupo"))];
-
-  return (
-    <div>
-      <div style={styles.topAction}>
-        <button style={styles.primaryBtn} onClick={addTask}>
-          + Nova tarefa
-        </button>
-      </div>
-
-      {groups.map((group) => (
-        <Panel key={group} title={group}>
-          <div style={styles.tableWrap}>
+        {page === "tasks" && (
+          <section style={styles.panel}>
             <table style={styles.table}>
               <thead>
                 <tr>
-                  <Th>Tarefa</Th>
-                  <Th>Projeto</Th>
-                  <Th>Responsável</Th>
-                  <Th>Status</Th>
-                  <Th>Prioridade</Th>
-                  <Th>Prazo</Th>
-                  <Th>Notas</Th>
-                  <Th>Ação</Th>
+                  <th>Tarefa</th>
+                  <th>Projeto</th>
+                  <th>Responsável</th>
+                  <th>Status</th>
+                  <th>Prioridade</th>
+                  <th>Prazo</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
-                {tasks
-                  .filter((t) => (t.group || "Sem grupo") === group)
-                  .map((task) => (
-                    <tr key={task.id}>
-                      <Td>
-                        <input
-                          style={styles.cellInput}
-                          value={task.title}
-                          onChange={(e) => updateTask(task.id, "title", e.target.value)}
-                        />
-                      </Td>
-                      <Td>
-                        <select
-                          style={styles.plainSelect}
-                          value={task.project}
-                          onChange={(e) => updateTask(task.id, "project", e.target.value)}
-                        >
-                          {projects.map((p) => (
-                            <option key={p.id}>{p.name}</option>
-                          ))}
-                        </select>
-                      </Td>
-                      <Td>
-                        <select
-                          style={styles.plainSelect}
-                          value={task.responsible}
-                          onChange={(e) => updateTask(task.id, "responsible", e.target.value)}
-                        >
-                          {users.map((u) => (
-                            <option key={u.id}>{u.name}</option>
-                          ))}
-                        </select>
-                      </Td>
-                      <Td>
-                        <Select
-                          value={task.status}
-                          options={Object.keys(STATUS)}
-                          onChange={(v) => updateTask(task.id, "status", v)}
-                          color={STATUS[task.status]}
-                        />
-                      </Td>
-                      <Td>
-                        <Select
-                          value={task.priority}
-                          options={Object.keys(PRIORITY)}
-                          onChange={(v) => updateTask(task.id, "priority", v)}
-                          color={PRIORITY[task.priority]}
-                        />
-                      </Td>
-                      <Td>
-                        <input
-                          type="date"
-                          style={styles.cellInput}
-                          value={task.dueDate}
-                          onChange={(e) => updateTask(task.id, "dueDate", e.target.value)}
-                        />
-                      </Td>
-                      <Td>
-                        <input
-                          style={styles.cellInput}
-                          value={task.notes}
-                          onChange={(e) => updateTask(task.id, "notes", e.target.value)}
-                        />
-                      </Td>
-                      <Td>
-                        <button style={styles.dangerBtn} onClick={() => deleteTask(task.id)}>
-                          Excluir
-                        </button>
-                      </Td>
-                    </tr>
-                  ))}
+                {tasks.map((task) => (
+                  <tr key={task.id}>
+                    <td>
+                      <input
+                        style={styles.tableInput}
+                        value={task.title}
+                        onChange={(e) => updateTask(task.id, "title", e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        style={styles.tableInput}
+                        value={task.project}
+                        onChange={(e) => updateTask(task.id, "project", e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        style={styles.tableInput}
+                        value={task.responsible}
+                        onChange={(e) => updateTask(task.id, "responsible", e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <select
+                        style={{ ...styles.statusSelect, background: statusColors[task.status] }}
+                        value={task.status}
+                        onChange={(e) => updateTask(task.id, "status", e.target.value)}
+                      >
+                        <option>Não iniciado</option>
+                        <option>Em andamento</option>
+                        <option>Concluído</option>
+                        <option>Travado</option>
+                      </select>
+                    </td>
+                    <td>
+                      <select
+                        style={styles.select}
+                        value={task.priority}
+                        onChange={(e) => updateTask(task.id, "priority", e.target.value)}
+                      >
+                        <option>Baixa</option>
+                        <option>Média</option>
+                        <option>Alta</option>
+                      </select>
+                    </td>
+                    <td>
+                      <input
+                        type="date"
+                        style={styles.tableInput}
+                        value={task.dueDate}
+                        onChange={(e) => updateTask(task.id, "dueDate", e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <button style={styles.deleteButton} onClick={() => deleteTask(task.id)}>
+                        Excluir
+                      </button>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
-          </div>
-        </Panel>
-      ))}
-    </div>
-  );
-}
+          </section>
+        )}
 
-function Team({ users, tasks }) {
-  return (
-    <div style={styles.userGrid}>
-      {users.map((user) => {
-        const count = tasks.filter((t) => t.responsible === user.name).length;
-        return (
-          <div key={user.id} style={styles.userCard}>
-            <div style={styles.bigAvatar}>{initials(user.name)}</div>
-            <h3 style={styles.cardName}>{user.name}</h3>
-            <p style={styles.muted}>{user.email}</p>
-            <Badge color={roleColor(user.role)}>{user.role}</Badge>
-            <p style={styles.taskCount}>{count} tarefa(s)</p>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function Users({ users, addUser, updateUser, deleteUser }) {
-  return (
-    <Panel
-      title="Usuários e permissões"
-      action={
-        <button style={styles.primaryBtn} onClick={addUser}>
-          + Adicionar usuário
-        </button>
-      }
-    >
-      <div style={styles.tableWrap}>
-        <table style={styles.table}>
-          <thead>
-            <tr>
-              <Th>Nome</Th>
-              <Th>E-mail</Th>
-              <Th>Perfil</Th>
-              <Th>Status</Th>
-              <Th>Ação</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map((u) => (
-              <tr key={u.id}>
-                <Td>
-                  <input
-                    style={styles.cellInput}
-                    value={u.name}
-                    onChange={(e) => updateUser(u.id, "name", e.target.value)}
-                  />
-                </Td>
-                <Td>
-                  <input
-                    style={styles.cellInput}
-                    value={u.email}
-                    onChange={(e) => updateUser(u.id, "email", e.target.value)}
-                  />
-                </Td>
-                <Td>
-                  <Select
-                    value={u.role}
-                    options={ROLES}
-                    onChange={(v) => updateUser(u.id, "role", v)}
-                    color={roleColor(u.role)}
-                  />
-                </Td>
-                <Td>
-                  <select
-                    style={styles.plainSelect}
-                    value={u.status}
-                    onChange={(e) => updateUser(u.id, "status", e.target.value)}
-                  >
-                    <option>Online</option>
-                    <option>Offline</option>
-                  </select>
-                </Td>
-                <Td>
-                  <button style={styles.dangerBtn} onClick={() => deleteUser(u.id)}>
-                    Remover
-                  </button>
-                </Td>
-              </tr>
+        {page === "team" && (
+          <div style={styles.teamGrid}>
+            {["Thiago Freitas", "Luciano Santos", "Ana Silva", "Pedro Costa"].map((name, i) => (
+              <div style={styles.memberCard} key={name}>
+                <div style={styles.avatar}>{name.split(" ").map((n) => n[0]).join("")}</div>
+                <h3>{name}</h3>
+                <p style={styles.muted}>{i === 0 ? "Admin" : i === 1 ? "Gerente" : "Membro"}</p>
+              </div>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </div>
+        )}
 
-      <div style={styles.permissionsBox}>
-        <h3>Permissões por perfil</h3>
-        <div style={styles.permissionsGrid}>
-          <Permission role="Administrador" items={["Tudo", "Usuários", "Configurações", "Projetos"]} />
-          <Permission role="Gerente" items={["Projetos", "Tarefas", "Equipe", "Timeline"]} />
-          <Permission role="Membro" items={["Tarefas", "Equipe", "Dashboard"]} />
-          <Permission role="Visualizador" items={["Somente leitura", "Dashboard"]} />
-        </div>
-      </div>
-    </Panel>
+        {page === "settings" && (
+          <section style={styles.panel}>
+            <h3>Configurações</h3>
+            <p>Workspace: Inteligência em Saúde</p>
+            <p>Modo atual: protótipo funcional</p>
+            <button
+              style={styles.deleteButton}
+              onClick={() => {
+                localStorage.removeItem("ies_tasks");
+                setTasks(initialTasks);
+              }}
+            >
+              Resetar tarefas
+            </button>
+          </section>
+        )}
+      </main>
+    </div>
   );
 }
+
+function Card({ title, value, color }) {
+  return (
+    <div style={styles.card}>
+      <p>{title}</p>
+      <strong style={{ color }}>{value}</strong>
+    </div>
+  );
+}
+
+function navStyle(active) {
+  return {
+    ...styles.navButton,
+    background: active ? "#e0f2fe" : "transparent",
+    color: active ? "#0369a1" : "#475569",
+    fontWeight: active ? "700" : "500",
+  };
+}
+
+const styles = {
+  loginPage: {
+    minHeight: "100vh",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: "linear-gradient(135deg,#0D47A1,#1877F2,#42A5F5)",
+    fontFamily: "Arial, sans-serif",
+  },
+  loginBox: {
+    width: 360,
+    background: "#fff",
+    padding: 36,
+    borderRadius: 20,
+    boxShadow: "0 20px 60px rgba(0,0,0,.2)",
+    textAlign: "center",
+  },
+  logo: {
+    fontSize: 38,
+    marginBottom: 10,
+  },
+  loginTitle: {
+    margin: 0,
+    color: "#0f172a",
+  },
+  loginSubtitle: {
+    color: "#64748b",
+    marginBottom: 24,
+  },
+  input: {
+    width: "100%",
+    padding: 12,
+    marginBottom: 12,
+    border: "1px solid #e2e8f0",
+    borderRadius: 10,
+    boxSizing: "border-box",
+  },
+  primaryButton: {
+    width: "100%",
+    padding: 12,
+    background: "#1877F2",
+    color: "#fff",
+    border: "none",
+    borderRadius: 10,
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+  primaryButtonSmall: {
+    padding: "10px 14px",
+    background: "#1877F2",
+    color: "#fff",
+    border: "none",
+    borderRadius: 10,
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+  app: {
+    height: "100vh",
+    display: "flex",
+    fontFamily: "Arial, sans-serif",
+    background: "#f8fafc",
+    color: "#0f172a",
+  },
+  sidebar: {
+    width: 240,
+    background: "#fff",
+    borderRight: "1px solid #e2e8f0",
+    padding: 16,
+    display: "flex",
+    flexDirection: "column",
+  },
+  brand: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 24,
+  },
+  brandIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    background: "#1877F2",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  navButton: {
+    border: "none",
+    borderRadius: 10,
+    padding: "12px 10px",
+    textAlign: "left",
+    marginBottom: 6,
+    cursor: "pointer",
+    fontSize: 14,
+  },
+  logout: {
+    marginTop: "auto",
+    border: "none",
+    background: "transparent",
+    color: "#ef4444",
+    cursor: "pointer",
+    textAlign: "left",
+    padding: 10,
+    fontWeight: 700,
+  },
+  main: {
+    flex: 1,
+    overflowY: "auto",
+  },
+  header: {
+    height: 76,
+    background: "#fff",
+    borderBottom: "1px solid #e2e8f0",
+    padding: "0 24px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  muted: {
+    color: "#64748b",
+    margin: "4px 0 0",
+  },
+  cards: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))",
+    gap: 16,
+    padding: 24,
+  },
+  card: {
+    background: "#fff",
+    border: "1px solid #e2e8f0",
+    borderRadius: 16,
+    padding: 20,
+  },
+  panel: {
+    margin: 24,
+    background: "#fff",
+    border: "1px solid #e2e8f0",
+    borderRadius: 16,
+    padding: 20,
+    overflowX: "auto",
+  },
+  progressRow: {
+    marginBottom: 14,
+  },
+  progressBar: {
+    marginTop: 6,
+    height: 10,
+    background: "#e2e8f0",
+    borderRadius: 999,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 999,
+  },
+  table: {
+    width: "100%",
+    borderCollapse: "collapse",
+  },
+  tableInput: {
+    border: "none",
+    background: "transparent",
+    outline: "none",
+    width: "100%",
+  },
+  statusSelect: {
+    color: "#fff",
+    border: "none",
+    borderRadius: 8,
+    padding: "6px 8px",
+    fontWeight: 700,
+  },
+  select: {
+    border: "1px solid #e2e8f0",
+    borderRadius: 8,
+    padding: "6px 8px",
+  },
+  deleteButton: {
+    background: "#fee2e2",
+    color: "#ef4444",
+    border: "none",
+    borderRadius: 8,
+    padding: "7px 10px",
+    cursor: "pointer",
+    fontWeight: 700,
+  },
+  teamGrid: {
+    padding: 24,
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))",
+    gap: 16,
+  },
+  memberCard: {
+    background: "#fff",
+    border: "1px solid #e2e8f0",
+    borderRadius: 16,
+    padding: 20,
+  },
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: "50%",
+    background: "#1877F2",
+    color: "#fff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontWeight: 800,
+    marginBottom: 10,
+  },
+};
